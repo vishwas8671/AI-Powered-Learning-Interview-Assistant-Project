@@ -1,20 +1,30 @@
 import React, { createContext, useState, useEffect } from 'react';
 import axios from 'axios';
 
+// Backend URL
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  'https://ai-powered-learning-interview-assistant-sh03.onrender.com';
+
+// Axios global config
+axios.defaults.baseURL = API_URL;
+
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [theme, setTheme] = useState('dark'); // Default to dark mode for CSE vibe
+  const [theme, setTheme] = useState('dark');
   const [bookmarks, setBookmarks] = useState([]);
   const [notes, setNotes] = useState([]);
   const [roadmaps, setRoadmaps] = useState([]);
 
-  // Apply Theme on load
+  // Apply Theme
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') || 'dark';
+
     setTheme(savedTheme);
+
     if (savedTheme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
@@ -22,14 +32,19 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // Fetch profile on initial load if token exists
+  // Initialize Auth
   useEffect(() => {
     const initializeAuth = async () => {
       const token = localStorage.getItem('token');
+
       if (token) {
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        axios.defaults.headers.common[
+          'Authorization'
+        ] = `Bearer ${token}`;
+
         try {
           const { data } = await axios.get('/api/auth/profile');
+
           if (data.success) {
             setUser({
               _id: data._id,
@@ -38,13 +53,15 @@ export const AuthProvider = ({ children }) => {
               isAdmin: data.isAdmin,
               streak: data.streak,
               analytics: data.analytics,
-              createdAt: data.createdAt
+              createdAt: data.createdAt,
             });
+
             setBookmarks(data.bookmarks || []);
             setNotes(data.notes || []);
-            
-            // Also fetch user roadmaps
+
+            // Fetch roadmaps
             const roadmapRes = await axios.get('/api/roadmaps');
+
             if (roadmapRes.data.success) {
               setRoadmaps(roadmapRes.data.roadmaps);
             }
@@ -54,16 +71,21 @@ export const AuthProvider = ({ children }) => {
           logout();
         }
       }
+
       setLoading(false);
     };
 
     initializeAuth();
   }, []);
 
+  // Toggle Theme
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
+
     setTheme(newTheme);
+
     localStorage.setItem('theme', newTheme);
+
     if (newTheme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
@@ -71,113 +93,171 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Login
   const login = async (email, password) => {
     try {
-      const { data } = await axios.post('/api/auth/login', { email, password });
+      const { data } = await axios.post('/api/auth/login', {
+        email,
+        password,
+      });
+
       if (data.success) {
         localStorage.setItem('token', data.token);
-        axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+
+        axios.defaults.headers.common[
+          'Authorization'
+        ] = `Bearer ${data.token}`;
+
         setUser({
           _id: data._id,
           name: data.name,
           email: data.email,
           isAdmin: data.isAdmin,
           streak: data.streak,
-          analytics: data.analytics
+          analytics: data.analytics,
         });
-        
-        // Load notes and roadmaps
+
+        // Fetch profile
         const profileRes = await axios.get('/api/auth/profile');
+
         if (profileRes.data.success) {
           setBookmarks(profileRes.data.bookmarks || []);
           setNotes(profileRes.data.notes || []);
         }
 
+        // Fetch roadmaps
         const roadmapRes = await axios.get('/api/roadmaps');
+
         if (roadmapRes.data.success) {
           setRoadmaps(roadmapRes.data.roadmaps);
         }
+
         return { success: true };
       }
     } catch (error) {
+      console.error(error);
+
       return {
         success: false,
-        message: error.response?.data?.message || 'Login failed'
+        message:
+          error.response?.data?.message || 'Login failed',
       };
     }
   };
 
+  // Register
   const register = async (name, email, password) => {
     try {
-      const { data } = await axios.post('/api/auth/register', { name, email, password });
+      const { data } = await axios.post('/api/auth/register', {
+        name,
+        email,
+        password,
+      });
+
       if (data.success) {
         localStorage.setItem('token', data.token);
-        axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+
+        axios.defaults.headers.common[
+          'Authorization'
+        ] = `Bearer ${data.token}`;
+
         setUser({
           _id: data._id,
           name: data.name,
           email: data.email,
           isAdmin: data.isAdmin,
           streak: data.streak,
-          analytics: data.analytics
+          analytics: data.analytics,
         });
+
         setBookmarks([]);
         setNotes([]);
         setRoadmaps([]);
+
         return { success: true };
       }
     } catch (error) {
+      console.error(error);
+
       return {
         success: false,
-        message: error.response?.data?.message || 'Registration failed'
+        message:
+          error.response?.data?.message ||
+          'Registration failed',
       };
     }
   };
 
+  // Logout
   const logout = () => {
     localStorage.removeItem('token');
+
     delete axios.defaults.headers.common['Authorization'];
+
     setUser(null);
     setBookmarks([]);
     setNotes([]);
     setRoadmaps([]);
   };
 
+  // Update Profile
   const updateProfile = async (name, email, password) => {
     try {
       const payload = { name, email };
+
       if (password) payload.password = password;
 
-      const { data } = await axios.put('/api/auth/profile', payload);
+      const { data } = await axios.put(
+        '/api/auth/profile',
+        payload
+      );
+
       if (data.success) {
-        setUser(prev => ({
+        setUser((prev) => ({
           ...prev,
           name: data.name,
-          email: data.email
+          email: data.email,
         }));
+
         if (data.token) {
           localStorage.setItem('token', data.token);
-          axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+
+          axios.defaults.headers.common[
+            'Authorization'
+          ] = `Bearer ${data.token}`;
         }
+
         return { success: true };
       }
     } catch (error) {
+      console.error(error);
+
       return {
         success: false,
-        message: error.response?.data?.message || 'Profile update failed'
+        message:
+          error.response?.data?.message ||
+          'Profile update failed',
       };
     }
   };
 
+  // Bookmark Toggle
   const toggleBookmark = async (item) => {
     try {
       const isBookmarked = bookmarks.includes(item);
+
       let res;
+
       if (isBookmarked) {
-        res = await axios.delete('/api/auth/bookmarks', { data: { item } });
+        res = await axios.delete('/api/auth/bookmarks', {
+          data: { item },
+        });
       } else {
-        res = await axios.post('/api/auth/bookmarks', { item });
+        res = await axios.post('/api/auth/bookmarks', {
+          item,
+        });
       }
+
       if (res.data.success) {
         setBookmarks(res.data.bookmarks);
       }
@@ -186,36 +266,62 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Save Notes
   const saveNote = async (questionTitle, content) => {
     try {
-      const { data } = await axios.post('/api/auth/notes', { questionTitle, content });
+      const { data } = await axios.post(
+        '/api/auth/notes',
+        {
+          questionTitle,
+          content,
+        }
+      );
+
       if (data.success) {
         setNotes(data.notes);
+
         return { success: true };
       }
     } catch (error) {
       console.error('Saving note failed', error);
+
       return { success: false };
     }
   };
 
+  // Toggle Roadmap Topic
   const toggleRoadmapTopic = async (title, topic) => {
     try {
-      const { data } = await axios.post('/api/roadmaps/toggle', { title, topic });
+      const { data } = await axios.post(
+        '/api/roadmaps/toggle',
+        {
+          title,
+          topic,
+        }
+      );
+
       if (data.success) {
-        setRoadmaps(prev => {
-          const idx = prev.findIndex(r => r.title === title);
+        setRoadmaps((prev) => {
+          const idx = prev.findIndex(
+            (r) => r.title === title
+          );
+
           if (idx > -1) {
             const copy = [...prev];
+
             copy[idx] = data.roadmap;
+
             return copy;
-          } else {
-            return [...prev, data.roadmap];
           }
+
+          return [...prev, data.roadmap];
         });
       }
     } catch (error) {
-      console.error('Toggling roadmap topic failed', error);
+      console.error(
+        'Toggling roadmap topic failed',
+        error
+      );
     }
   };
 
@@ -235,7 +341,7 @@ export const AuthProvider = ({ children }) => {
         updateProfile,
         toggleBookmark,
         saveNote,
-        toggleRoadmapTopic
+        toggleRoadmapTopic,
       }}
     >
       {children}
